@@ -6,6 +6,20 @@
 # git clone https://github.com/AlexBGoode/PS4-Python-sales.git
 # will create a folder "always" containing this script
 
+# easy_install simplejson
+# easy_install gspread
+# easy_install oauth2client
+# cat ps4sales-aef32dacd287.json | ssh asus "cat > /..../ps4sales-aef32dacd287.json"
+# cat data.json | ssh asus "cat > /..../data.json"
+## asus # opkg install ca-certificates -> Segmentation fault
+## easy_install-2.7 --user urllib3 ???
+## easy_install-2.7 --user ndg_httpsclient ??? error: [Errno 12] Cannot allocate memory
+## easy_install pyOpenSSL ??? error: [Errno 12] Cannot allocate memory
+## '/Library/Python/2.7/site-packages/httplib2-0.9.2-py2.7.egg/httplib2/cacerts.txt'
+# asus # unzip /tmp/mnt/sda1/entware/lib/python2.7/site-packages/httplib2-0.9.2-py2.7.egg # !!! works
+
+
+
 import sys, os, logging
 from datetime import datetime
 import time
@@ -491,8 +505,8 @@ if __name__ == '__main__':
 
     ps4 = Sales()
     saleResults = checkResults = None
-    # checkResults = ps4.checkAllAccounts()
-    saleResults = ps4.doSale()
+    checkResults = ps4.checkAllAccounts()
+    # saleResults = ps4.doSale()
     # print salesResult
     logger.info('\n' + simplejson.dumps(
                 {'sales': saleResults, 'control': checkResults},
