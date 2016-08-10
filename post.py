@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
 # opkg install git
@@ -17,11 +17,14 @@
 ## easy_install pyOpenSSL ??? error: [Errno 12] Cannot allocate memory
 ## '/Library/Python/2.7/site-packages/httplib2-0.9.2-py2.7.egg/httplib2/cacerts.txt'
 # asus # unzip /tmp/mnt/sda1/entware/lib/python2.7/site-packages/httplib2-0.9.2-py2.7.egg # !!! works
+# sudo easy_install --user --upgrade pytz # for timezone support
+
 
 
 
 import sys, os, logging
-from datetime import datetime
+from datetime import datetime as dt
+from pytz import timezone as TZ
 import time
 import requests
 import simplejson
@@ -31,9 +34,6 @@ import gspread
 from oauth2client.client import GoogleCredentials
 from logging.handlers import TimedRotatingFileHandler
 logger = logging.getLogger(__name__)
-
-os.environ['TZ'] = 'Europe/Moscow'
-time.tzset()
 
 # import urllib3.contrib.pyopenssl
 # urllib3.contrib.pyopenssl.inject_into_urllib3()
@@ -326,7 +326,7 @@ class Sales():
 
             accWS.update_cell(line, 1, status) # update status in A column
 
-            timestamp = datetime.strftime(datetime.now(), '%d.%m.%Y %H:%M')
+            timestamp = dt.strftime(dt.now(TZ('Europe/Moscow')), '%d.%m.%Y %H:%M')
             accWS.update_cell(line, 2, timestamp) # record timestamp
 
             logger.debug("Lines processed: %s, accounts remain: %s" % (line, cnt))
