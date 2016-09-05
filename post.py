@@ -4,20 +4,16 @@
 # opkg install git
 # opkg install git-http
 # git clone https://github.com/AlexBGoode/PS4-Python-sales.git
-# will create a folder "always" containing this script
+# will create a folder "PS4-Python-sales" containing this script
 
+# easy_install pytz
 # easy_install simplejson
 # easy_install gspread
-# easy_install oauth2client
+# easy_install oauth2client => six, rsa, pyasn1
 # cat ps4sales-aef32dacd287.json | ssh asus "cat > /..../ps4sales-aef32dacd287.json"
 # cat data.json | ssh asus "cat > /..../data.json"
-## asus # opkg install ca-certificates -> Segmentation fault
-## easy_install-2.7 --user urllib3 ???
-## easy_install-2.7 --user ndg_httpsclient ??? error: [Errno 12] Cannot allocate memory
-## easy_install pyOpenSSL ??? error: [Errno 12] Cannot allocate memory
-## '/Library/Python/2.7/site-packages/httplib2-0.9.2-py2.7.egg/httplib2/cacerts.txt'
-# asus # unzip /tmp/mnt/sda1/entware/lib/python2.7/site-packages/httplib2-0.9.2-py2.7.egg # !!! works
-# sudo easy_install --user --upgrade pytz # for timezone support
+# asus # unzip /tmp/mnt/sda1/entware/lib/python2.7/site-packages/httplib2-0.9.2-py2.7.egg -d httplib2-0.9.2-py2.7
+#      # mv httplib2-0.9.2-py2.7 httplib2-0.9.2-py2.7.egg
 
 
 
