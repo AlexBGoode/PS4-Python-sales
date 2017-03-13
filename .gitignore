@@ -1,4 +1,5 @@
 *.json
 log*
 *.xml
+*.pyc
 .idea/*
