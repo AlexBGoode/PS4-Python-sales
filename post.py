@@ -12,8 +12,7 @@
 # easy_install oauth2client => six, rsa, pyasn1
 # cat ps4sales-aef32dacd287.json | ssh asus "cat > /..../ps4sales-aef32dacd287.json"
 # cat data.json | ssh asus "cat > /..../data.json"
-# asus # unzip /tmp/mnt/sda1/entware/lib/python2.7/site-packages/httplib2-0.9.2-py2.7.egg -d httplib2-0.9.2-py2.7
-#      # mv httplib2-0.9.2-py2.7 httplib2-0.9.2-py2.7.egg
+# asus # unzip -Z /tmp/mnt/sda1/entware/lib/python2.7/site-packages/httplib2-0.9.2-py2.7.egg => no EGG but folder
 
 
 
@@ -29,6 +28,7 @@ from HTMLParser import HTMLParser
 import gspread
 from oauth2client.client import GoogleCredentials
 from logging.handlers import TimedRotatingFileHandler
+from lib.Auth import Auth
 logger = logging.getLogger(__name__)
 
 # import urllib3.contrib.pyopenssl
@@ -99,6 +99,66 @@ class Sales():
         with open(filename, 'w') as f:
             c_json = simplejson.dumps(data)
             f.write(c_json)
+        return
+
+    def login2(self, login, password):
+        # https://id.sonyentertainmentnetwork.com/signin/#/signin
+
+        # < form
+        # action = "#"
+        # novalidate = ""
+        # data - ember - action = "588" >
+        # < input
+        # id = "ember614"
+        # maxlength = "63"
+        # placeholder = "ID входа в сеть (адрес эл. почты)"
+        # tabindex = "2"
+        # title = "ID входа в сеть (адрес эл. почты)"
+        # type = "email"
+        # class ="touch-feedback theme-textfield hokkai-text-input ember-view ember-text-field" >
+        #
+        # < input
+        # id = "ember628"
+        # maxlength = "30"
+        # placeholder = "Пароль"
+        # tabindex = "2"
+        # title = "Пароль"
+        # autocomplete = "off"
+        # type = "password"
+        # class ="touch-feedback password-field hokkai-text-input with-icon-disp input-password ember-view ember-text-field" >
+        # < / form >
+        #
+
+        url = 'https://id.sonyentertainmentnetwork.com/signin/?client_id=fe1fdbfa-f1a1-47ac-b793-e648fba25e86&redirect_uri=https://secure.eu.playstation.com/psnauth/PSNOAUTHResponse/pdc/&service_entity=urn:service-entity:psn&response_type=code&scope=psn:s2s&ui=pr&service_logo=ps&request_locale=ru_RU&error=login_required&error_code=4165&error_description=User+is+not+authenticated#/signin?entry=%2Fsignin'
+        try:
+            data = self.loadConfig('cookies')
+            # print data
+            c = requests.utils.cookiejar_from_dict(data)
+            self.s.cookies = c
+        except StandardError as e:
+            logger.debug("No cookies found %s" % (e.message))
+
+        r = self.s.get(url)
+        html = r.text
+        regex = re.compile('class="my_profile ">[\s]+<a href="\/users\/(?P<user>\w+)"')
+        # ckecking if the link to the user profile is in place
+        m = regex.search(html)
+        if m != None:
+            logger.info('Good, already logged in as ' + m.group('user'))
+        else:
+            data={"ember628": login, "ember628": password}
+            r = self.s.post(url, data=data)
+            html = r.text
+            # print html
+            # ckecking if the link to the user profile is in place
+            m = regex.search(html)
+            if m != None:
+                logger.info('Logged in as ' + m.group('user'))
+            else:
+                msg = 'Unsuccessful login for user ' + login
+                logger.error(msg + '\n' + html)
+                raise StandardError(msg)
+
         return
 
     def login(self, login, password):
@@ -270,7 +330,7 @@ class Sales():
         res = dict()
         res['accounts_total'] = cnt
         res['to_sell'] = res['errors'] = 0
-        line = 3    # starting from a row 3
+        line = 8    # starting from a row 3
 
         # increase line number and decrease the account counter
         while True:
@@ -335,35 +395,32 @@ class Sales():
         return res
 
     def check_psn_game(self, psn_login, psn_password):
+        base = 'https://account.sonyentertainmentnetwork.com'
         try:
-            base = 'https://account.sonyentertainmentnetwork.com'
             # logging out for consistency
             url = base + '/liquid/j_spring_security_logout'
             r = self.s.get(url)
-            html = r.text
+            # html = r.text
             self.s = requests.Session()
-            # need to get struts token
-            # regex = re.compile('<input type="hidden" name="struts.token" value="(.*)" />')
-            # token = str(regex.findall(html)[0])
-            # print token
 
-            # logging in and also checking the last activated device
-            # url = base + '/liquid/j_spring_security_check'
-            url = base + '/liquid/j_spring_security_check'
-            data={"j_username": psn_login, "j_password": psn_password,
-                  # "struts.token.name": "struts.token", "struts.token": token,
-                  "service-entity": "np"}
-            r = self.s.post(url, data)
-            # r = requests.post(url, data=data)
-            # r = self.s.get(url)
+            auth = Auth(psn_login, psn_password)
+            code = auth.GrabLoginCookies()
+            self.s.cookies = code
+
+            url = base + '/liquid/home/index!display.action'
+            r = self.s.get(url)
             html = r.text
+
             # checking if logged in
             regex = re.compile('<span id="currentUsernameSpan">(.*)</span>')
             token = regex.findall(html)
+            # need also to check for <p>An error has occurred, please try again later (800101).</p>
             if len(token) == 0:
+                # no user profile found = no successful login
                 # logger.info(html)
                 logger.debug(html)
                 raise StandardError('No successful login with ' + psn_login)
+
             # parsing for the last activated device
             regex = re.compile('<div class="lastDeviceName">(.*)</div>')
             token = regex.findall(html)
@@ -400,7 +457,6 @@ class Sales():
 
     def get_adv_and_post(self, forumID):
         adv = self.get_adv_for_forum(forumID)
-        time.sleep(30)
         # msg = adv['message']
         # logger.debug("Got the message to publish:\n" + msg)
         self.post_adv_message(forumID, adv['message'])
@@ -496,11 +552,14 @@ class Sales():
         print 1/0
 
 
+
 if __name__ == '__main__':
+
 
 
     ps4 = Sales()
     saleResults = checkResults = None
+    # ps4.login2('hello','again')
     checkResults = ps4.checkAllAccounts()
     # saleResults = ps4.doSale()
     # print salesResult
