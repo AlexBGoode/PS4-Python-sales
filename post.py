@@ -14,9 +14,6 @@
 # cat data.json | ssh asus "cat > /..../data.json"
 # asus # unzip -Z /tmp/mnt/sda1/entware/lib/python2.7/site-packages/httplib2-0.9.2-py2.7.egg => no EGG but folder
 
-
-
-
 import sys, os, logging
 from datetime import datetime as dt
 from pytz import timezone as TZ
@@ -36,8 +33,7 @@ logger = logging.getLogger(__name__)
 # # easy_install-2.7 --user urllib3
 # # easy_install-2.7 --user ndg_httpsclient
 
-
-
+# Test RE at http://pythex.org/
 
 class GoogleTables():
 
@@ -101,65 +97,6 @@ class Sales():
             f.write(c_json)
         return
 
-    def login2(self, login, password):
-        # https://id.sonyentertainmentnetwork.com/signin/#/signin
-
-        # < form
-        # action = "#"
-        # novalidate = ""
-        # data - ember - action = "588" >
-        # < input
-        # id = "ember614"
-        # maxlength = "63"
-        # placeholder = "ID входа в сеть (адрес эл. почты)"
-        # tabindex = "2"
-        # title = "ID входа в сеть (адрес эл. почты)"
-        # type = "email"
-        # class ="touch-feedback theme-textfield hokkai-text-input ember-view ember-text-field" >
-        #
-        # < input
-        # id = "ember628"
-        # maxlength = "30"
-        # placeholder = "Пароль"
-        # tabindex = "2"
-        # title = "Пароль"
-        # autocomplete = "off"
-        # type = "password"
-        # class ="touch-feedback password-field hokkai-text-input with-icon-disp input-password ember-view ember-text-field" >
-        # < / form >
-        #
-
-        url = 'https://id.sonyentertainmentnetwork.com/signin/?client_id=fe1fdbfa-f1a1-47ac-b793-e648fba25e86&redirect_uri=https://secure.eu.playstation.com/psnauth/PSNOAUTHResponse/pdc/&service_entity=urn:service-entity:psn&response_type=code&scope=psn:s2s&ui=pr&service_logo=ps&request_locale=ru_RU&error=login_required&error_code=4165&error_description=User+is+not+authenticated#/signin?entry=%2Fsignin'
-        try:
-            data = self.loadConfig('cookies')
-            # print data
-            c = requests.utils.cookiejar_from_dict(data)
-            self.s.cookies = c
-        except StandardError as e:
-            logger.debug("No cookies found %s" % (e.message))
-
-        r = self.s.get(url)
-        html = r.text
-        regex = re.compile('class="my_profile ">[\s]+<a href="\/users\/(?P<user>\w+)"')
-        # ckecking if the link to the user profile is in place
-        m = regex.search(html)
-        if m != None:
-            logger.info('Good, already logged in as ' + m.group('user'))
-        else:
-            data={"ember628": login, "ember628": password}
-            r = self.s.post(url, data=data)
-            html = r.text
-            # print html
-            # ckecking if the link to the user profile is in place
-            m = regex.search(html)
-            if m != None:
-                logger.info('Logged in as ' + m.group('user'))
-            else:
-                msg = 'Unsuccessful login for user ' + login
-                logger.error(msg + '\n' + html)
-                raise StandardError(msg)
-
-        return
 
     def login(self, login, password):
         url=self.server_url + "/login"
@@ -171,10 +108,9 @@ class Sales():
         except StandardError as e:
             logger.debug("No cookies found %s" % (e.message))
 
-
         r = self.s.get(url)
         html = r.text
-        regex = re.compile('class="my_profile ">[\s]+<a href="\/users\/(?P<user>\w+)"')
+        regex = re.compile('href="\/users\/(?P<user>\w+)"')
         # ckecking if the link to the user profile is in place
         m = regex.search(html)
         if m != None:
@@ -186,7 +122,7 @@ class Sales():
                 logger.error("Problem with logging in\n" + html)
 
             # found the prompt for credentials, so need to extract csrf_token...
-            data={"login": login, "pass": password, "csrf_token": token[0]}
+            data={"login": login, "pass": password, "csrf_token": token[0], "remember": 1}
             logger.debug("Going for a fresh login with csrf_token " + token[0])
 
             # ...and then login
@@ -250,11 +186,15 @@ class Sales():
             # we'd better chech the response for errors
             # looking for the avatar area of the post with a back reference to the profile,
             # means presence of the post
-            re_str = 'class="my_profile ">\s*<a href="(?P<user>\/users\/\w+)"[\W\w]+' + \
-                     '<a name="(?P<postID>\d+)" ' + \
-                     'href="(?P<postURL>\/forum\/thread(?P<forumID>\d+)-?\d+.html#(?P=postID))">' + \
-                     '#\w+<\/a>[\w\W]+ class="post-td avatar"><a href="(?P=user)"'
-            # logger.debug(re_str)
+
+            re_str = ''.join((
+                'href="(?P<user>/users/\w+)" role="button"[\W\w]+',                         # link to the user profile
+                '<a name="(?P<postID>\d+)" class="w d" ',                                   # link to the post
+                'href="(?P<postURL>/forum/thread(?P<forumID>\d+)-?\d+.html#(?P=postID))">',
+                '<span>#\w+</span></a>[\W\w]+ class="post-td avatar"><a href="(?P=user)"'   # back reference to profile
+            ))
+            # href="(?P<user>/users/\w+)" role="button"[\W\w]+<a name="(?P<postID>\d+)" class="w d" href="(?P<postURL>/forum/thread(?P<forumID>\d+)-?\d+.html#(?P=postID))"><span>#\w+</span></a>[\W\w]+ class="post-td avatar"><a href="(?P=user)"
+            logger.debug(re_str)
             m = re.search(re_str, html)
             if m != None:
                 logger.debug('Confirmed' + msg + simplejson.dumps(m.groupdict()))
@@ -560,8 +500,8 @@ if __name__ == '__main__':
     ps4 = Sales()
     saleResults = checkResults = None
     # ps4.login2('hello','again')
-    checkResults = ps4.checkAllAccounts()
-    # saleResults = ps4.doSale()
+    # checkResults = ps4.checkAllAccounts()
+    saleResults = ps4.doSale()
     # print salesResult
     logger.info('\n' + simplejson.dumps(
                 {'sales': saleResults, 'control': checkResults},
